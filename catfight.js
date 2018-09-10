@@ -2,7 +2,6 @@
 
 //---------------------------------Game Objects------------------------------------------------------
 let cat, dojo;
-
 //---------------------------------Render Setup------------------------------------------------------
 
 let renderer = PIXI.autoDetectRenderer(500,300, {antialias: false, transparent: false, resolution: 1});
@@ -26,6 +25,7 @@ let gameState = play;
 	-Gameloop creates an envirnment to be interacted with, constantly updating the frame (60 FPS)
 */
 function setup(){
+
 	let dojoTexture = PIXI.utils.TextureCache["dojo.png"];
 	dojo = new PIXI.Sprite(dojoTexture);
 	stage.addChild(dojo);
@@ -41,9 +41,15 @@ function setup(){
 	//Center the sprite
 	cat.x = renderer.view.width / 2 - cat.width / 2;
 	cat.y = renderer.view.height / 2 - cat.height / 2;
-	//Initialize the sprites's velocity variables
+	//Initialize the sprites's velocity, acceleration, friction, speed and drag variables
 	cat.vx = 0;
 	cat.vy = 0;
+	cat.accelerationX = 0;
+	cat.accelerationY = 0;
+	cat.frictionX = 1;
+	cat.frictionY = 1;
+	cat.speed = 0.2;
+	cat.drag = 0.98;
 	//Scale the sprite up so it's 3 times bigger than the original image
 	cat.scale.set(3, 3);
 	//Add the sprite to the stage
@@ -58,7 +64,7 @@ function setup(){
 
 	left.release = () => {
 		//If the left arrow has been released, and the right arrow isn't down,
-		//and the pixie isn't moving vertically, stop the sprite from moving
+		//and the cat isn't moving vertically, stop the sprite from moving
 		//by setting its velocity to zero
 		if (!right.isDown && cat.vy === 0) {
 			cat.vx = 0;
@@ -68,10 +74,11 @@ function setup(){
 	up.press = () => {
 		cat.vy = -5;
 		cat.vx = 0;
+
 	};
 	up.release = () => {
 		if (!down.isDown && cat.vx === 0) {
-			cat.vy = 0;
+			cat.vy = 0;	 
 		}
 	};
 	//Right
@@ -105,6 +112,52 @@ function setup(){
 		}
 	};
 
+	
+	left.press = () => {
+		cat.accelerationX = -cat.speed;
+		cat.frictionX = 1;
+	};
+	
+	left.release = () => {
+	if (!right.isDown) {
+	cat.accelerationX = 0;
+	cat.frictionX = cat.drag;
+	}
+	};
+	//Up
+	up.press = () => {
+	cat.accelerationY = -cat.speed;
+	cat.frictionY = 1;
+	};
+	up.release = () => {
+	if (!down.isDown) {
+	cat.accelerationY = 0;
+	cat.frictionY = cat.drag;
+	}
+	};
+	//Right
+	right.press = () => {
+	cat.accelerationX = cat.speed;
+	cat.frictionX = 1;
+	};
+	right.release = () => {
+	if (!left.isDown) {
+	cat.accelerationX = 0;
+	cat.frictionX = cat.drag;
+	}
+	};
+	//Down
+	down.press = () => {
+	cat.accelerationY = cat.speed;
+	cat.frictionY = 1;
+	};
+	down.release = () => {
+	if (!up.isDown) {
+	cat.accelerationY = 0;
+	cat.frictionY = cat.drag;
+	}
+	};
+	
 	gameLoop();
 };
 
@@ -113,8 +166,38 @@ function setup(){
 */
 
 function play(){
+	
+	//Acceleration and friction
+	cat.vx += cat.accelerationX;
+	cat.vy += cat.accelerationY;
+	cat.vx *= cat.frictionX;
+	cat.vy *= cat.frictionY;
+	//Gravity
+	cat.vy += 0.1;
+		
+	//Move the sprite
 	cat.x += cat.vx;
 	cat.y += cat.vy;
+	
+	let collision = contain(
+		cat, //The sprite you want to contain
+		{ //An object that defines the area
+			x: 0, //`x` position
+			y: 0, //`y` position
+			width: renderer.view.width, //`width`
+			height: renderer.view.height //`height`
+		}
+	);
+		if (collision) {
+	//Reverse the sprite's `vx` value if it hits the left or right
+		if (collision.has("left") || collision.has("right")){
+			cat.vx = -cat.vx;
+		}
+		//Reverse the sprite's `vy` value if it hits the top or bottom
+		if (collision.has("top") || collision.has("bottom")){
+			cat.vy = -cat.vy;
+		}
+	}
 };
 
 /*
@@ -166,4 +249,36 @@ function keyboard(keyCode) {
 	
 	//Return the `key` object
 	return key;
+}
+
+function contain(sprite, container) {
+	//Create a `Set` called `collision` to keep track of the
+	//boundaries with which the sprite is colliding
+	var collision = new Set();
+	//Left
+	//If the sprite's x position is less than the container's x position,
+	//move it back inside the container and add "left" to the collision Set
+	if (sprite.x < container.x) {
+		sprite.x = container.x;
+		collision.add("left");
+	}
+	//Top
+	if (sprite.y < container.y) {
+		sprite.y = container.y;
+		collision.add("top");
+	}
+	//Right
+	if (sprite.x + sprite.width > container.width) {
+		sprite.x = container.width - sprite.width;
+		collision.add("right");
+	}
+	//Bottom
+	if (sprite.y + sprite.height > container.height) {
+		sprite.y = container.height - sprite.height;
+		collision.add("bottom");
+	}
+	//If there were no collisions, set `collision` to `undefined`
+	if (collision.size === 0) collision = undefined;
+	//Return the `collision` value
+	return collision;
 }

@@ -26,7 +26,6 @@ let gameState = play;
 	-Gameloop creates an envirnment to be interacted with, constantly updating the frame (60 FPS)
 */
 function setup(){
-	let keyObject = keyboard;
 	let dojoTexture = PIXI.utils.TextureCache["dojo.png"];
 	dojo = new PIXI.Sprite(dojoTexture);
 	stage.addChild(dojo);
@@ -56,10 +55,7 @@ function setup(){
 		right = keyboard(39),
 		down = keyboard(40);
 
-	keyObject.press = () => {
-		cat.vx = -5;
-		cat.vy = 0;
-	};
+
 	left.release = () => {
 		//If the left arrow has been released, and the right arrow isn't down,
 		//and the pixie isn't moving vertically, stop the sprite from moving
